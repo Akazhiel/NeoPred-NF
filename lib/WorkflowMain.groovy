@@ -61,17 +61,6 @@ class WorkflowMain {
         // Print parameter summary log to screen
         log.info paramsSummaryLog(workflow, params, log)
 
-        // Check that conda channels are set-up correctly
-        if (params.enable_conda) {
-            Utils.checkCondaChannels(log)
-        }
-
-        // Check AWS batch settings
-        NfcoreTemplate.awsBatch(workflow, params)
-
-        // Check the hostnames against configured profiles
-        NfcoreTemplate.hostName(workflow, params, log)
-
         // Check input has been provided
         if (!params.input) {
             log.error "Please provide an input samplesheet to the pipeline e.g. '--input samplesheet.csv'"
