@@ -58,6 +58,9 @@ fasta                   = Channel.fromPath(params.fasta).collect()
 fasta_fai               = Channel.fromPath(params.fasta_fai).collect()
 germline_resource       = Channel.fromPath(params.germline).collect()
 germline_resource_tbi   = Channel.fromPath(params.germline_index).collect()
+vep_cache_version       = params.vep_cache_version ?: Channel.empty()
+vep_cache               = params.vep_cache ? Channel.fromPath(params.vep_cache).collect()                 : ch_dummy_file
+vep_genome              = params.vep_genome ?: Channel.empty()
 
 //
 // MODULE: Local to the pipeline
@@ -126,6 +129,8 @@ include { FILTER_VARIANTS } from '../subworkflows/local/filter_variants' addPara
 )
 
 include { COMBINE_VARIANTS } from '../modules/local/combine_variants' addParams(options:  modules['combine_variants'])
+
+include { VEP } from '../modules/local/vep_annotate' addParams(options: modules['vep'])
 
 /*
 ========================================================================================
@@ -322,13 +327,21 @@ workflow NEOPRED_DNA {
         somaticsniper_filtered
     )
 
-    // //
-    // //  ANNOTATE VARIANTS
-    // //
+    merged_vcf = COMBINE_VARIANTS.out.vcf
+    ch_software_versions = ch_software_versions.mix(COMBINE_VARIANTS.out.version.ifEmpty(null))
 
-    // ANNOTATE_VARIANTS (
 
-    // )
+    //
+    //  ANNOTATE VARIANTS
+    //
+
+    VEP (
+        merged_vcf,
+        fasta,
+        vep_cache,
+        vep_cache_version,
+        vep_genome
+    )
 
     //
     // MODULE: Pipeline reporting

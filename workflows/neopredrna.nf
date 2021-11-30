@@ -50,6 +50,9 @@ dict                    = Channel.fromPath(params.dict).collect()
 fasta                   = Channel.fromPath(params.fasta).collect()
 fasta_fai               = Channel.fromPath(params.fasta_fai).collect()
 gtf                     = Channel.fromPath(params.gtf).collect()
+vep_cache_version       = params.vep_cache_version ?: Channel.empty()
+vep_cache               = params.vep_cache ? Channel.fromPath(params.vep_cache).collect()                 : ch_dummy_file
+vep_genome              = params.vep_genome ?: Channel.empty()
 
 //
 // MODULE: Local to the pipeline
@@ -89,8 +92,15 @@ include { HLATYPING } from '../subworkflows/local/hlatyping'                    
 )
 
 include { RNA_VARIANT_CALLING } from '../subworkflows/local/rna_variant_calling'            addParams(
-
+    varscan_options:                   modules['varscan'],
+    haplotypecaller_options:           modules['haplotypecaller']
 )
+
+include { HAPLOTYOPECALLER_FILTER } from '../modules/local/gatk4/variant_filtration'        addParams( options: modules['haplotypecaller_filter'])
+
+include { FEATURECOUNTS } from '../modules/local/featurecounts'                             addParams( options: modules['featurecounts'])
+
+include { COMBINE_VARIANTS } from '../modules/local/combine_variants'                       addParams(options:  modules['combine_variants'])
 
 /*
 ========================================================================================
@@ -191,6 +201,72 @@ workflow NEOPRED_RNA {
     // VARIANT CALLING
     //
 
+    RNA_VARIANT_CALLING (
+        bam_bqsr,
+        dbsnp,
+        dbsnp_tbi,
+        dict,
+        fasta_fai,
+        fasta,
+    )
+
+    haplotypecaller_vcf = PAIR_VARIANT_CALLING.out.haplotypecaller_vcf
+    varscan_vcf         = PAIR_VARIANT_CALLING.out.varscan_vcf
+
+    ch_software_versions = ch_software_versions.mix(RNA_VARIANT_CALLING.out.version.ifEmpty(null))
+
+    //
+    // RNA COUNTS
+    //
+
+    FEATURECOUNTS (
+        bam_bqsr,
+        gtf
+    )
+
+    ch_software_versions = ch_software_versions.mix(FEATURECOUNTS.out.version.ifEmpty(null))
+
+    //
+    // FILTERING
+    //
+
+    HAPLOTYOPECALLER_FILTER (
+        haplotypecaller_vcf,
+        fasta,
+        fasta_fai,
+        dict
+    )
+
+    haplotypecaller_vcf_filtered = HAPLOTYOPECALLER_FILTER.out.vcf
+
+    ch_software_versions = ch_software_versions.mix(HAPLOTYOPECALLER_FILTER.out.version.ifEmpty(null))
+
+    //
+    // COMBINEVARIANTS
+    //
+
+    COMBINE_VARIANTS (
+        fasta,
+        fasta_fai,
+        dict,
+        haplotypecaller_vcf_filtered,
+        varscan_vcf
+    )
+
+    merged_vcf = COMBINE_VARIANTS.out.vcf
+    ch_software_versions = ch_software_versions.mix(COMBINE_VARIANTS.out.version.ifEmpty(null))
+
+    //
+    //  ANNOTATE VARIANTS
+    //
+
+    ANNOTATE_VARIANTS (
+        merged_vcf,
+        fasta,
+        vep_cache,
+        vep_cache_version,
+        vep_genome
+    )
 
     ch_software_versions
         .map { it -> if (it) [ it.baseName, it ] }

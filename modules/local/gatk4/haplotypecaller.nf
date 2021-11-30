@@ -1,5 +1,5 @@
 // Import generic module functions
-include { initOptions; saveFiles; getSoftwareName } from './functions'
+include { initOptions; saveFiles; getSoftwareName } from '../functions'
 
 params.options = [:]
 options        = initOptions(params.options)
@@ -13,11 +13,13 @@ process VARSCAN {
 
     input:
     tuple val(meta), path(bam), path(bai)
-    path  fasta
-    path  fai
+    path(fasta)
+    path(fai)
+    path(dbsnp)
+    path(dbsnp_index)
 
     output:
-    tuple val(meta), path("*_filtered.vcf")  , emit: vcf
+    tuple val(meta), path("*.vcf")  , emit: vcf
     path "*.version.txt"            , emit: version
 
     script:
@@ -25,15 +27,14 @@ process VARSCAN {
     def prefix = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
 
     """
+    gatk --java-options "-Xmx${task.memory.toGiga()}g" \
+        HaplotypeCaller \
+        --reference ${fasta}\
+        --input ${bam} \
+        --dbsnp ${dbsnp} \
+        $options.args \
+        --output ${prefix}.vcf
 
-    samtools mpileup $options.args -f ${fasta} ${bam} > Tumor_rna.pileup
-
-    varscan mpileup2cns    \\
-        Tumor_rna.pileup  \\
-        $options.args3 > ${prefix}.vcf
-
-    awk '{if (\$1 ~ /#/) {print} else if (\$4 != \$5) {gsub(/W|K|B|Y|D|H|V|R|S|M/,"N",\$4); OFS="\t"; print}}' ${prefix}.vcf > ${prefix}_filtered.vcf
-
-    echo \$(varscan 2>&1) | sed -e 's/^.*VarScan v//g; s/ \\*.*\$//' > ${software}.version.txt
+    echo \$(gatk HaplotypeCaller --version 2>&1) | sed 's/^.*(GATK) v//; s/ HTSJDK.*\$//' > ${software}.version.txt
     """
 }

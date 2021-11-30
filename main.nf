@@ -22,6 +22,7 @@ params.pon_index = WorkflowMain.getGenomeAttribute(params, 'pon_index')
 params.dbsnp = WorkflowMain.getGenomeAttribute(params, 'dbsnp')
 params.dbsnp_index = WorkflowMain.getGenomeAttribute(params, 'dbsnp_index')
 params.intervals = WorkflowMain.getGenomeAttribute(params, 'intervals')
+params.vep_genome = WorkflowMain.getGenomeAttribute(params, 'vep_genome')
 params.vep_cache_version = WorkflowMain.getGenomeAttribute(params, 'vep_cache_version')
 params.known_indels = WorkflowMain.getGenomeAttribute(params, 'known_indels')
 params.known_indels_index = WorkflowMain.getGenomeAttribute(params, 'known_indels_index')
@@ -42,13 +43,13 @@ WorkflowMain.initialise(workflow, params, log)
 ========================================================================================
 */
 
-include { NEOPRED_RNA } from './workflows/neopredrna'
+include { NEOPRED_DNA } from './workflows/neopreddna'
 
 //
 // WORKFLOW: Run main nf-core/neoprednf analysis pipeline
 //
 workflow NFCORE_NEOPREDNF {
-    NEOPRED_RNA ()
+    NEOPRED_DNA ()
 }
 
 /*

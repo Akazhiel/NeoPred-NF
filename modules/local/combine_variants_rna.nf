@@ -15,12 +15,8 @@ process COMBINE_VARIANTS {
     path(fasta)
     path(fai)
     path(dict)
-    tuple val(meta), path(mutect2_filtered)
-    tuple val(meta), path(varscan_indel_filtered)
-    tuple val(meta), path(varscan_snv_filtered)
-    tuple val(meta), path(strelka_indel_filtered)
-    tuple val(meta), path(strelka_snv_filtered)
-    tuple val(meta), path(somaticsniper_filtered)
+    tuple val(meta), path(haplotypecaller_vcf_filtered)
+    tuple val(meta), path(varscan_vcf)
 
     output:
     tuple val(meta), path("*_combined_calls.vcf"), path("*_combined_calls.vcf.idx")      , emit: vcf
@@ -33,15 +29,15 @@ process COMBINE_VARIANTS {
     """
     gatk3 -T CombineVariants \\
         -R $fasta \\
-        -V:varscan_indel $varscan_indel_filtered \\
         -V:varscan $varscan_snv_filtered \\
-        -V:strelka_indel $strelka_indel_filtered \\
-        -V:strelka $strelka_snv_filtered \\
-        -V:mutect $mutect2_filtered \\
-        -V:somaticsniper $somaticsniper_filtered \\
+        -V:HaplotypeCaller $somaticsniper_filtered \\
         -o ${prefix}.vcf \\
         $options.args \\
         --num_threads $task.cpus
+
+    sed -i 's/${meta.id}.HaplotypeCaller/HaplotypeCaller/g' ${prefix}.vcf
+
+    sed -i 's/Sample1.varscan/varscan/g' combined_calls.vcf
 
     echo \$(gatk3 -T CombineVariants --version) > ${software}.version.txt
     """
