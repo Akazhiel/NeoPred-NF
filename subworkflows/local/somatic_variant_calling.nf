@@ -108,7 +108,7 @@ workflow PAIR_VARIANT_CALLING {
         params.target_bed
     )
 
-    mutect2_vcf = MUTECT2.out.vcf.collect()
+    mutect2_vcf = MUTECT2.out.vcf
     mutect2_vcf_stats = MUTECT2.out.vcf_stats
     tool_versions = tool_versions.mix(MUTECT2.out.version)
 

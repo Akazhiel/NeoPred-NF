@@ -36,10 +36,6 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
     nextflow run akazhiel/neoprednf -profile docker --input samplesheet.csv --genome GRCh37 --refDir /path/to/reference
     ```
 
-## Documentation
-
-The nf-core/neoprednf pipeline comes with documentation about the pipeline [usage](https://nf-co.re/neoprednf/usage), [parameters](https://nf-co.re/neoprednf/parameters) and [output](https://nf-co.re/neoprednf/output).
-
 ## Credits
 
 akazhiel/neoprednf was originally written by Jonatan Gonzalez Rodriguez.

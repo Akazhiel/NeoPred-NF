@@ -43,13 +43,20 @@ WorkflowMain.initialise(workflow, params, log)
 ========================================================================================
 */
 
-include { NEOPRED_DNA } from './workflows/neopreddna'
+include { NEOPRED_DNA }     from './workflows/neopreddna'
+include { NEOPRED_RNA }     from './workflows/neopredrna'
+include { MERGE_RESULTS }   from './workflows/merge_results'
 
 //
 // WORKFLOW: Run main nf-core/neoprednf analysis pipeline
 //
 workflow NFCORE_NEOPREDNF {
-    NEOPRED_DNA ()
+
+    if ( params.DNA ) {
+        NEOPRED_DNA ()
+        MERGE_RESULTS ( NEOPRED_DNA.out.vep_vcf)
+    }
+
 }
 
 /*

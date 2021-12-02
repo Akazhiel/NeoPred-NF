@@ -174,7 +174,7 @@ workflow NEOPRED_DNA {
         bwa_index
     )
 
-    bam_mapped = MAPPING.out.bam
+    bam_mapped  = MAPPING.out.bam
     bam_indexed = MAPPING.out.bam_indexed
 
     ch_software_versions = ch_software_versions.mix(MAPPING.out.versions.ifEmpty(null))
@@ -231,8 +231,8 @@ workflow NEOPRED_DNA {
         known_sites_tbi,
     )
 
-    table_bqsr = PREPARE_RECALIBRATION.out.table_bqsr
-    bam_applybqsr = bam_markduplicates.join(table_bqsr)
+    table_bqsr           = PREPARE_RECALIBRATION.out.table_bqsr
+    bam_applybqsr        = bam_markduplicates.join(table_bqsr)
     ch_software_versions = ch_software_versions.mix(PREPARE_RECALIBRATION.out.version.ifEmpty(null))
 
     //
@@ -260,6 +260,7 @@ workflow NEOPRED_DNA {
         hla_dna_fasta
     )
 
+    hla = HLATYPING.out.hla
     ch_software_versions = ch_software_versions.mix(HLATYPING.out.version.ifEmpty(null))
 
     //
@@ -328,6 +329,7 @@ workflow NEOPRED_DNA {
     )
 
     merged_vcf = COMBINE_VARIANTS.out.vcf
+    merged_vcf.dump()
     ch_software_versions = ch_software_versions.mix(COMBINE_VARIANTS.out.version.ifEmpty(null))
 
 
@@ -342,6 +344,9 @@ workflow NEOPRED_DNA {
         vep_cache_version,
         vep_genome
     )
+
+    annotated_vcf = VEP.out.vcf.collect().dump()
+    ch_software_versions = ch_software_versions.mix(VEP.out.version.ifEmpty(null))
 
     //
     // MODULE: Pipeline reporting
@@ -377,6 +382,9 @@ workflow NEOPRED_DNA {
     // )
     // multiqc_report       = MULTIQC.out.report.toList()
     // ch_software_versions = ch_software_versions.mix(MULTIQC.out.version.ifEmpty(null))
+
+    emit:
+    vep_vcf = annotated_vcf
 }
 
 /*

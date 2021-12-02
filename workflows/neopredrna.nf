@@ -96,11 +96,13 @@ include { RNA_VARIANT_CALLING } from '../subworkflows/local/rna_variant_calling'
     haplotypecaller_options:           modules['haplotypecaller']
 )
 
-include { HAPLOTYOPECALLER_FILTER } from '../modules/local/gatk4/variant_filtration'        addParams( options: modules['haplotypecaller_filter'])
+include { HAPLOTYOPECALLER_FILTER } from '../modules/local/gatk4/variantfiltration'        addParams( options: modules['haplotypecaller_filter'])
 
 include { FEATURECOUNTS } from '../modules/local/featurecounts'                             addParams( options: modules['featurecounts'])
 
 include { COMBINE_VARIANTS } from '../modules/local/combine_variants'                       addParams(options:  modules['combine_variants'])
+
+include { VEP } from '../modules/local/vep_annotate' addParams(options: modules['vep'])
 
 /*
 ========================================================================================
@@ -260,13 +262,16 @@ workflow NEOPRED_RNA {
     //  ANNOTATE VARIANTS
     //
 
-    ANNOTATE_VARIANTS (
+    VEP (
         merged_vcf,
         fasta,
         vep_cache,
         vep_cache_version,
         vep_genome
     )
+
+    annotated_vcf = VEP.out.vcf
+    ch_software_versions = ch_software_versions.mix(VEP.out.version.ifEmpty(null))
 
     ch_software_versions
         .map { it -> if (it) [ it.baseName, it ] }
@@ -298,6 +303,9 @@ workflow NEOPRED_RNA {
     // )
     // multiqc_report       = MULTIQC.out.report.toList()
     // ch_software_versions = ch_software_versions.mix(MULTIQC.out.version.ifEmpty(null))
+
+    emit:
+        vep_vcf = annotated_vcf
 }
 
 /*

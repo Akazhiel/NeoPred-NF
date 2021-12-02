@@ -15,8 +15,8 @@ process OPTITYPE {
     tuple val(meta), path(bam)
 
     output:
-    tuple val(meta), path("${prefix}"), emit: output
-    path  "*.version.txt"             , emit: version
+    tuple val(meta), path("${prefix}/*.tsv"), emit: output
+    path  "*.version.txt"                   , emit: version
 
     script:
     def software = getSoftwareName(task.process)
