@@ -56,16 +56,17 @@ panel_of_normals_tbi    = Channel.fromPath(params.pon_index).collect()
 dict                    = Channel.fromPath(params.dict).collect()
 fasta                   = Channel.fromPath(params.fasta).collect()
 fasta_fai               = Channel.fromPath(params.fasta_fai).collect()
+gtf                     = Channel.fromPath(params.gtf).collect()
 germline_resource       = Channel.fromPath(params.germline).collect()
 germline_resource_tbi   = Channel.fromPath(params.germline_index).collect()
 vep_cache_version       = params.vep_cache_version ?: Channel.empty()
-vep_cache               = params.vep_cache ? Channel.fromPath(params.vep_cache).collect()                 : ch_dummy_file
+vep_cache               = params.vep_cache ? Channel.fromPath(params.vep_cache).collect() : []            
 vep_genome              = params.vep_genome ?: Channel.empty()
 
 //
 // MODULE: Local to the pipeline
 //
-include { GET_SOFTWARE_VERSIONS } from '../modules/local/get_software_versions' addParams( options: [publish_files : ['tsv':'']] )
+include { GET_SOFTWARE_VERSIONS } from '../modules/local/get_software_versions' addParams( options: [publish_files : ['tsv':'DNA']] )
 
 /*
 ========================================================================================
@@ -86,51 +87,51 @@ include { FASTQC  }                 from '../modules/local/fastqc'              
 
 include { TRIMGALORE }              from '../modules/local/trimgalore'                      addParams( options: modules['trimgalore'] )
 
-include { MAPPING } from '../subworkflows/local/mapping' addParams(
+include { MAPPING } from '../subworkflows/local/mapping'                                    addParams(
     bwamem_options:                     modules['bwamem'],
     bwamem_tumor_options:               modules['bwamem_tumor'],
     samtools_index_options:             modules['samtools_index_bam']
 )
 
 include { MARKDUPLICATES }          from '../subworkflows/local/markduplicates'             addParams(
-    markduplicates_options: modules['markduplicates'],
-    markduplicatesspark_options: modules['markduplicatesspark']
+    markduplicates_options:             modules['markduplicates'],
+    markduplicatesspark_options:        modules['markduplicatesspark']
 )
 
-include { PREPARE_RECALIBRATION } from '../subworkflows/local/prepare_recalibration' addParams(
+include { PREPARE_RECALIBRATION } from '../subworkflows/local/prepare_recalibration'        addParams(
     baserecalibrator_options:          modules['baserecalibrator'],
     baserecalibrator_spark_options:    modules['baserecalibrator_spark']
 )
 
-include { RECALIBRATE } from '../subworkflows/local/recalibrate' addParams(
+include { RECALIBRATE } from '../subworkflows/local/recalibrate'                            addParams(
     applybqsr_options:                 modules['applybqsr'],
     applybqsr_spark_options:           modules['applybqsr_spark'],
     qualimap_bamqc_options:            modules['qualimap_bamqc_recalibrate']
 )
 
-include { HLATYPING } from '../subworkflows/local/hlatyping' addParams(
+include { HLATYPING } from '../subworkflows/local/hlatyping'                                addParams(
     yara_index:                        modules['yara_index'],
     yara_mapping:                      modules['yara_map'],
     optitype:                          modules['optitype']
 )
 
-include { PAIR_VARIANT_CALLING } from '../subworkflows/local/somatic_variant_calling' addParams(
-    mutect2_somatic_options:            modules['mutect2_somatic'],
-    strelka_options:                    modules['strelka_somatic'],
-    somaticsniper_options:              modules['somaticsniper'],
-    varscan_options:                    modules['varscan']
+include { PAIR_VARIANT_CALLING } from '../subworkflows/local/somatic_variant_calling'       addParams(
+    mutect2_somatic_options:           modules['mutect2_somatic'],
+    strelka_options:                   modules['strelka_somatic'],
+    somaticsniper_options:             modules['somaticsniper'],
+    varscan_options:                   modules['varscan']
 )
 
-include { FILTER_VARIANTS } from '../subworkflows/local/filter_variants' addParams(
-    strelka_filter:                     modules['strelka_filter'],
-    mutect2_filter:                     modules['mutect2_filter'],
-    varscan_filter:                     modules['varscan_filter'],
-    somaticsniper_filter:               modules['somaticsniper_filter']
+include { FILTER_VARIANTS } from '../subworkflows/local/filter_variants'                    addParams(
+    strelka_filter:                    modules['strelka_filter'],
+    mutect2_filter:                    modules['mutect2_filter'],
+    varscan_filter:                    modules['varscan_filter'],
+    somaticsniper_filter:              modules['somaticsniper_filter']
 )
 
-include { COMBINE_VARIANTS } from '../modules/local/combine_variants' addParams(options:  modules['combine_variants'])
+include { COMBINE_VARIANTS } from '../modules/local/combine_variants'                       addParams(options:  modules['combine_variants'])
 
-include { VEP } from '../modules/local/vep_annotate' addParams(options: modules['vep'])
+include { VEP } from '../modules/local/vep_annotate'                                        addParams(options: modules['vep'])
 
 /*
 ========================================================================================
@@ -229,6 +230,7 @@ workflow NEOPRED_DNA {
         fasta,
         known_sites,
         known_sites_tbi,
+        target_bed
     )
 
     table_bqsr           = PREPARE_RECALIBRATION.out.table_bqsr
@@ -245,7 +247,8 @@ workflow NEOPRED_DNA {
         dict,
         fasta_fai,
         fasta,
-        target_bed
+        target_bed,
+        gtf
     )
 
     bam_bqsr = RECALIBRATE.out.bam
@@ -257,10 +260,11 @@ workflow NEOPRED_DNA {
 
     HLATYPING (
         bam_bqsr,
-        hla_dna_fasta
+        hla_dna_fasta,
+        input_sample
     )
 
-    hla = HLATYPING.out.hla
+    hla = HLATYPING.out.hla.groupTuple(by: 0).ifEmpty([])
     ch_software_versions = ch_software_versions.mix(HLATYPING.out.version.ifEmpty(null))
 
     //
@@ -282,7 +286,6 @@ workflow NEOPRED_DNA {
     )
 
     mutect2_vcf       = PAIR_VARIANT_CALLING.out.mutect2_vcf
-    mutect2_vcf_stats = PAIR_VARIANT_CALLING.out.mutect2_vcf_stats
     varscan_vcf       = PAIR_VARIANT_CALLING.out.varscan_vcf
     somaticsniper_vcf = PAIR_VARIANT_CALLING.out.somaticsniper_vcf
     strelka_vcf       = PAIR_VARIANT_CALLING.out.strelka_vcf
@@ -301,16 +304,21 @@ workflow NEOPRED_DNA {
         varscan_vcf,
         somaticsniper_vcf,
         strelka_vcf,
-        mutect2_vcf,
-        mutect2_vcf_stats
+        mutect2_vcf
     )
 
-    mutect2_filtered        = FILTER_VARIANTS.out.mutect2_vcf
-    varscan_indel_filtered  = FILTER_VARIANTS.out.varscan_indel_vcf
-    varscan_snv_filtered    = FILTER_VARIANTS.out.varscan_snv_vcf
-    strelka_indel_filtered  = FILTER_VARIANTS.out.strelka_indel_vcf
-    strelka_snv_filtered    = FILTER_VARIANTS.out.strelka_snv_vcf
-    somaticsniper_filtered  = FILTER_VARIANTS.out.somaticsniper_vcf
+    filtered_vcf = Channel.empty()
+
+    filtered_vcf  = filtered_vcf.mix(FILTER_VARIANTS.out.mutect2_vcf)
+    filtered_vcf  = filtered_vcf.mix(FILTER_VARIANTS.out.varscan_indel_vcf)
+    filtered_vcf  = filtered_vcf.mix(FILTER_VARIANTS.out.varscan_snv_vcf)
+    filtered_vcf  = filtered_vcf.mix(FILTER_VARIANTS.out.strelka_indel_vcf)
+    filtered_vcf  = filtered_vcf.mix(FILTER_VARIANTS.out.strelka_snv_vcf)
+    filtered_vcf  = filtered_vcf.mix(FILTER_VARIANTS.out.somaticsniper_vcf)
+    
+    filtered_vcf.groupTuple(by: 0).map { meta, paths ->
+        [meta, *paths.sort( { it.getName().toString() })]
+        }.set { vcf_to_merge }
 
     //
     // MERGE VARIANTS
@@ -320,18 +328,11 @@ workflow NEOPRED_DNA {
         fasta,
         fasta_fai,
         dict,
-        mutect2_filtered,
-        varscan_indel_filtered,
-        varscan_snv_filtered,
-        strelka_indel_filtered,
-        strelka_snv_filtered,
-        somaticsniper_filtered
+        vcf_to_merge
     )
 
     merged_vcf = COMBINE_VARIANTS.out.vcf
-    merged_vcf.dump()
     ch_software_versions = ch_software_versions.mix(COMBINE_VARIANTS.out.version.ifEmpty(null))
-
 
     //
     //  ANNOTATE VARIANTS
@@ -345,7 +346,11 @@ workflow NEOPRED_DNA {
         vep_genome
     )
 
-    annotated_vcf = VEP.out.vcf.collect().dump()
+    annotated_vcf = VEP.out.vcf.collect().flatten().collate(2).ifEmpty([])
+    annotated_vcf.map{ meta, vcf ->
+        [meta.patient, meta.tumor, vcf]
+    }.groupTuple(by: 0).set{ ann_vcf }
+
     ch_software_versions = ch_software_versions.mix(VEP.out.version.ifEmpty(null))
 
     //
@@ -361,6 +366,7 @@ workflow NEOPRED_DNA {
         .set { ch_software_versions }
 
     GET_SOFTWARE_VERSIONS (
+        input_sample,
         ch_software_versions.map { it }.collect()
     )
 
@@ -384,7 +390,8 @@ workflow NEOPRED_DNA {
     // ch_software_versions = ch_software_versions.mix(MULTIQC.out.version.ifEmpty(null))
 
     emit:
-    vep_vcf = annotated_vcf
+    vep_vcf = ann_vcf
+    hla     = hla
 }
 
 /*

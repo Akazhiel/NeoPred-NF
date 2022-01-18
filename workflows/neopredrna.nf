@@ -44,6 +44,7 @@ star_index              = Channel.fromPath(params.star_index).collect()
 known_indels            = Channel.fromPath(params.known_indels).collect()
 known_indels_index      = Channel.fromPath(params.known_indels_index).collect()
 dbsnp                   = Channel.fromPath(params.dbsnp).collect()
+target_bed              = params.target_bed        ? Channel.fromPath(params.target_bed).collect()        : ch_dummy_file
 dbsnp_tbi               = Channel.fromPath(params.dbsnp_index).collect()
 hla_rna_fasta           = Channel.fromPath(params.hla_reference_rna).collect()
 dict                    = Channel.fromPath(params.dict).collect()
@@ -51,13 +52,13 @@ fasta                   = Channel.fromPath(params.fasta).collect()
 fasta_fai               = Channel.fromPath(params.fasta_fai).collect()
 gtf                     = Channel.fromPath(params.gtf).collect()
 vep_cache_version       = params.vep_cache_version ?: Channel.empty()
-vep_cache               = params.vep_cache ? Channel.fromPath(params.vep_cache).collect()                 : ch_dummy_file
+vep_cache               = params.vep_cache ? Channel.fromPath(params.vep_cache).collect()                 : []
 vep_genome              = params.vep_genome ?: Channel.empty()
 
 //
 // MODULE: Local to the pipeline
 //
-include { GET_SOFTWARE_VERSIONS } from '../modules/local/get_software_versions' addParams( options: [publish_files : ['tsv':'']] )
+include { GET_SOFTWARE_VERSIONS } from '../modules/local/get_software_versions' addParams( options: [publish_files : ['tsv':'RNA']] )
 
 /*
 ========================================================================================
@@ -73,6 +74,8 @@ include { MARKDUPLICATES }          from '../subworkflows/local/markduplicates' 
     markduplicates_options:             modules['markduplicates'],
     markduplicatesspark_options:        modules['markduplicatesspark']
 )
+
+include { SPLITNCIGAR }             from '../modules/local/gatk4/splitreads'                addParams( options: modules['splitncigarreads'])
 
 include { PREPARE_RECALIBRATION } from '../subworkflows/local/prepare_recalibration'        addParams(
     baserecalibrator_options:          modules['baserecalibrator'],
@@ -92,17 +95,17 @@ include { HLATYPING } from '../subworkflows/local/hlatyping'                    
 )
 
 include { RNA_VARIANT_CALLING } from '../subworkflows/local/rna_variant_calling'            addParams(
-    varscan_options:                   modules['varscan'],
+    varscan_options:                   modules['varscan_rna'],
     haplotypecaller_options:           modules['haplotypecaller']
 )
 
-include { HAPLOTYOPECALLER_FILTER } from '../modules/local/gatk4/variantfiltration'        addParams( options: modules['haplotypecaller_filter'])
+include { HAPLOTYPECALLER_FILTER } from '../modules/local/gatk4/variantfiltration'          addParams( options: modules['haplotypecaller_filter'])
 
 include { FEATURECOUNTS } from '../modules/local/featurecounts'                             addParams( options: modules['featurecounts'])
 
-include { COMBINE_VARIANTS } from '../modules/local/combine_variants'                       addParams(options:  modules['combine_variants'])
+include { COMBINE_VARIANTS } from '../modules/local/combine_variants_rna'                   addParams( options: modules['combine_variants'])
 
-include { VEP } from '../modules/local/vep_annotate' addParams(options: modules['vep'])
+include { VEP } from '../modules/local/vep_annotate'                                        addParams( options: modules['vep'])
 
 /*
 ========================================================================================
@@ -116,6 +119,9 @@ include { VEP } from '../modules/local/vep_annotate' addParams(options: modules[
 workflow NEOPRED_RNA {
 
     ch_software_versions = Channel.empty()
+
+    known_sites     = dbsnp.concat(known_indels).collect()
+    known_sites_tbi = dbsnp_tbi.concat(known_indels_index).collect()
 
     // TRIM READS WITH CUTADAPT
 
@@ -137,7 +143,7 @@ workflow NEOPRED_RNA {
 
     bam = STAR_ALIGN.out.bam
 
-    ch_software_versions = ch_software_versions.mix(STAR_ALIGN.out.version.ifEmpty(null))
+    ch_software_versions = ch_software_versions.mix(STAR_ALIGN.out.versions.ifEmpty(null))
 
     // MARK DUPLICATES
 
@@ -155,21 +161,38 @@ workflow NEOPRED_RNA {
     ch_software_versions = ch_software_versions.mix(MARKDUPLICATES.out.versions.ifEmpty(null))
 
     //
+    // Split N Cigar Reads
+    //
+
+    SPLITNCIGAR (
+        bam_markduplicates,
+        fasta,
+        fasta_fai,
+        dict
+    )
+
+    bam_split = SPLITNCIGAR.out.bam
+
+    ch_software_versions = ch_software_versions.mix(SPLITNCIGAR.out.versions.ifEmpty(null))
+
+
+    //
     // Prepare Recalibration
     //
 
     PREPARE_RECALIBRATION (
-        bam_markduplicates,
+        bam_split,
         params.use_gatk_spark,
         dict,
         fasta_fai,
         fasta,
         known_sites,
         known_sites_tbi,
+        target_bed
     )
 
     table_bqsr = PREPARE_RECALIBRATION.out.table_bqsr
-    bam_applybqsr = bam_markduplicates.join(table_bqsr)
+    bam_applybqsr = bam_split.join(table_bqsr)
     ch_software_versions = ch_software_versions.mix(PREPARE_RECALIBRATION.out.version.ifEmpty(null))
 
     //
@@ -182,7 +205,8 @@ workflow NEOPRED_RNA {
         dict,
         fasta_fai,
         fasta,
-        target_bed
+        target_bed,
+        gtf
     )
 
     bam_bqsr = RECALIBRATE.out.bam
@@ -194,9 +218,11 @@ workflow NEOPRED_RNA {
 
     HLATYPING (
         bam_bqsr,
-        hla_rna_fasta
+        hla_rna_fasta,
+        input_sample
     )
 
+    hla = HLATYPING.out.hla.groupTuple(by: 0).ifEmpty([])
     ch_software_versions = ch_software_versions.mix(HLATYPING.out.version.ifEmpty(null))
 
     //
@@ -209,11 +235,11 @@ workflow NEOPRED_RNA {
         dbsnp_tbi,
         dict,
         fasta_fai,
-        fasta,
+        fasta
     )
 
-    haplotypecaller_vcf = PAIR_VARIANT_CALLING.out.haplotypecaller_vcf
-    varscan_vcf         = PAIR_VARIANT_CALLING.out.varscan_vcf
+    haplotypecaller_vcf = RNA_VARIANT_CALLING.out.haplotypecaller_vcf
+    varscan_vcf         = RNA_VARIANT_CALLING.out.varscan_vcf
 
     ch_software_versions = ch_software_versions.mix(RNA_VARIANT_CALLING.out.version.ifEmpty(null))
 
@@ -226,22 +252,34 @@ workflow NEOPRED_RNA {
         gtf
     )
 
+    rna_counts = FEATURECOUNTS.out.counts.ifEmpty([])
+    rna_counts.map { meta, counts ->
+        [meta.patient, counts]
+    }.groupTuple(by: 0).set { rna_counts }
+
     ch_software_versions = ch_software_versions.mix(FEATURECOUNTS.out.version.ifEmpty(null))
 
     //
     // FILTERING
     //
 
-    HAPLOTYOPECALLER_FILTER (
+    HAPLOTYPECALLER_FILTER (
         haplotypecaller_vcf,
         fasta,
         fasta_fai,
         dict
     )
 
-    haplotypecaller_vcf_filtered = HAPLOTYOPECALLER_FILTER.out.vcf
+    filtered_vcf = Channel.empty()
 
-    ch_software_versions = ch_software_versions.mix(HAPLOTYOPECALLER_FILTER.out.version.ifEmpty(null))
+    filtered_vcf = filtered_vcf.mix(HAPLOTYPECALLER_FILTER.out.vcf)
+    filtered_vcf = filtered_vcf.mix(varscan_vcf)
+
+    filtered_vcf.groupTuple(by: 0).map { meta, paths ->
+        [meta, *paths.sort( { it.getName().toString() })]
+        }.set { vcf_to_merge }
+
+    ch_software_versions = ch_software_versions.mix(HAPLOTYPECALLER_FILTER.out.version.ifEmpty(null))
 
     //
     // COMBINEVARIANTS
@@ -251,8 +289,7 @@ workflow NEOPRED_RNA {
         fasta,
         fasta_fai,
         dict,
-        haplotypecaller_vcf_filtered,
-        varscan_vcf
+        vcf_to_merge
     )
 
     merged_vcf = COMBINE_VARIANTS.out.vcf
@@ -270,7 +307,12 @@ workflow NEOPRED_RNA {
         vep_genome
     )
 
-    annotated_vcf = VEP.out.vcf
+    annotated_vcf = VEP.out.vcf.collect().flatten().collate(2).ifEmpty([])
+    annotated_vcf.map{ meta, vcf ->
+        meta.tumor = "${meta.patient}_${meta.sample}".toString()
+        [meta.patient, meta.tumor, vcf]
+    }.groupTuple(by: 0).set{ ann_vcf }
+
     ch_software_versions = ch_software_versions.mix(VEP.out.version.ifEmpty(null))
 
     ch_software_versions
@@ -282,6 +324,7 @@ workflow NEOPRED_RNA {
         .set { ch_software_versions }
 
     GET_SOFTWARE_VERSIONS (
+        input_sample,
         ch_software_versions.map { it }.collect()
     )
 
@@ -305,7 +348,9 @@ workflow NEOPRED_RNA {
     // ch_software_versions = ch_software_versions.mix(MULTIQC.out.version.ifEmpty(null))
 
     emit:
-        vep_vcf = annotated_vcf
+        vep_vcf = ann_vcf
+        counts  = rna_counts
+        hla     = hla
 }
 
 /*
@@ -335,7 +380,7 @@ def extract_csv(csv_file) {
         .map{ row, numLanes -> //from here do the usual thing for csv parsing
         def meta = [:]
 
-        //TODO since it is mandatory: error/warning if not present?
+        // TODO since it is mandatory: error/warning if not present?
         // Meta data to identify samplesheet
         // Both patient and sample are mandatory
         // Several sample can belong to the same patient

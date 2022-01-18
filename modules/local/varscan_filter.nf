@@ -7,15 +7,15 @@ options        = initOptions(params.options)
 process VARSCAN_FILTER {
     tag "Varscan_filtering"
     label 'process_low'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['sample']) }
+    // publishDir "${params.outdir}",
+    //     mode: params.publish_dir_mode,
+    //     saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['patient']) }
 
     input:
     tuple val(meta), path(varscan_vcf)
 
     output:
-    tuple val(meta), path("*snp_filtered.vcf"), optional: true        , emit: snv_vcf
+    tuple val(meta), path("*snp_filtered.vcf")  , optional: true      , emit: snv_vcf
     tuple val(meta), path("*indel_filtered.vcf"), optional: true      , emit: indel_vcf
 
     script:

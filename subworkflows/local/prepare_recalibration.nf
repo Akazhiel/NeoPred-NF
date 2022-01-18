@@ -10,24 +10,25 @@ include { GATK4_BASERECALIBRATOR_SPARK  as BASERECALIBRATOR_SPARK } from '../../
 
 workflow PREPARE_RECALIBRATION {
     take:
-        bam_markduplicates  // channel: [mandatory] bam_markduplicates
+        bam  // channel: [mandatory] bam_markduplicates
         use_gatk_spark      //   value: [mandatory] use gatk spark
         dict                // channel: [mandatory] dict
         fai                 // channel: [mandatory] fai
         fasta               // channel: [mandatory] fasta
         known_sites         // channel: [optional]  known_sites
         known_sites_tbi     // channel: [optional]  known_sites_tbi
+        target_bed
 
     main:
 
     tool_versions         = Channel.empty()
 
     if (use_gatk_spark) {
-        BASERECALIBRATOR_SPARK(bam_markduplicates, fasta, fai, dict, known_sites, known_sites_tbi)
+        BASERECALIBRATOR_SPARK(bam, fasta, fai, dict, known_sites, known_sites_tbi)
         table_baserecalibrator = BASERECALIBRATOR_SPARK.out.table
         tool_versions          = BASERECALIBRATOR_SPARK.out.version
     } else {
-        BASERECALIBRATOR(bam_markduplicates, fasta, fai, dict, known_sites, known_sites_tbi)
+        BASERECALIBRATOR(bam, fasta, fai, dict, known_sites, known_sites_tbi, target_bed)
         table_baserecalibrator = BASERECALIBRATOR.out.table
         tool_versions          = BASERECALIBRATOR.out.version
     }

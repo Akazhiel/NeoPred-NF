@@ -7,16 +7,16 @@ options        = initOptions(params.options)
 process OPTITYPE {
     tag "$meta.id"
     label 'process_medium'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
+    // publishDir "${params.outdir}",
+    //     mode: params.publish_dir_mode,
+    //     saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
     input:
     tuple val(meta), path(bam)
 
     output:
-    tuple val(meta), path("${prefix}/*.tsv"), emit: output
-    path  "*.version.txt"                   , emit: version
+    tuple val(meta.patient), path("${prefix}/*.tsv"), emit: output
+    path  "*.version.txt"  , emit: version
 
     script:
     def software = getSoftwareName(task.process)

@@ -5,8 +5,8 @@
 params.varscan_options                = [:]
 params.haplotypecaller_options        = [:]
 
-include { VARSCAN }                                      from '../../modules/local/varscan'                  addParams(options: params.varscan_options)
-include { HAPLOTYPECALLER }                              from '../../modules/local/gatk4/haplotypecaller'          addParams(options: params.haplotypecaller_options)
+include { VARSCAN }                                      from '../../modules/local/varscan_rna'                  addParams(options: params.varscan_options)
+include { HAPLOTYPECALLER }                              from '../../modules/local/gatk4/haplotypecaller'        addParams(options: params.haplotypecaller_options)
 
 workflow RNA_VARIANT_CALLING {
     take:
@@ -25,9 +25,10 @@ workflow RNA_VARIANT_CALLING {
 
 
     HAPLOTYPECALLER (
-        bam_pair,
+        bam,
         fasta,
         fai,
+        dict,
         dbsnp,
         dbsnp_tbi
     )
@@ -36,11 +37,9 @@ workflow RNA_VARIANT_CALLING {
     tool_versions       = tool_versions.mix(HAPLOTYPECALLER.out.version)
 
     VARSCAN (
-        bam_pair,
+        bam,
         fasta,
-        fai,
-        target_bed,
-        params.target_bed
+        fai
     )
 
     varscan_vcf   = VARSCAN.out.vcf

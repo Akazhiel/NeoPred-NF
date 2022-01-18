@@ -14,6 +14,7 @@ workflow HLATYPING {
     take:
         bam                       // channel: [mandatory] meta, bam recalibrated
         hla_fasta                 // channel: [mandatory] bwa
+        input
 
     main:
 
@@ -21,7 +22,7 @@ workflow HLATYPING {
 
     // Index hla reference fasta
 
-    YARA_INDEX(hla_fasta)
+    YARA_INDEX(hla_fasta, input)
     hla_index = YARA_INDEX.out.index
     tool_versions = tool_versions.mix(YARA_INDEX.out.version)
 

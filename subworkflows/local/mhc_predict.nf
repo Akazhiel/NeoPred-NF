@@ -1,15 +1,11 @@
 //
-// RECALIBRATE
+// MHCPREDICT
 //
 
-params.applybqsr_options      = [:]
-params.applybqsr_spark_options = [:]
-params.qualimap_bamqc_options = [:]
+params.mhcflurry_options = [:]
+
 
 include { GATK4_APPLYBQSR as APPLYBQSR }             from '../../modules/local/gatk4/applybqsr'      addParams(options: params.applybqsr_options)
-include { GATK4_APPLYBQSR_SPARK as APPLYBQSR_SPARK } from '../../modules/local/gatk4/applybqsrspark' addParams(options: params.applybqsr_spark_options)
-include { QUALIMAP_BAMQC }                           from '../../modules/local/qualimap'             addParams(options: params.qualimap_bamqc_options)
-include { QUALIMAP_BAMQC_RNA }                       from '../../modules/local/qualimap_rna'         addParams(options: params.qualimap_bamqc_options)
 
 workflow RECALIBRATE {
     take:

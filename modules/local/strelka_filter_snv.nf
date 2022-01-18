@@ -7,9 +7,9 @@ options        = initOptions(params.options)
 process STRELKA_FILTER_SNV {
     tag "Strelka_snv_filtering"
     label 'process_low'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['sample']) }
+    // publishDir "${params.outdir}",
+    //     mode: params.publish_dir_mode,
+    //     saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['patient']) }
 
     input:
     tuple val(meta), path(strelka_snv_vcf)

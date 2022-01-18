@@ -6,9 +6,9 @@ options        = initOptions(params.options)
 process FASTQC {
     tag "$meta.id"
     label 'process_medium'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
+    // publishDir "${params.outdir}",
+    //     mode: params.publish_dir_mode,
+    //     saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
     input:
     tuple val(meta), path(reads)
@@ -22,8 +22,7 @@ process FASTQC {
     // Add soft-links to original FastQs for consistent naming in pipeline
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
-    println "Starting FASTQC"
-    println "${reads}"
+
     if (meta.single_end) {
         """
         [ ! -f  ${prefix}.fastq.gz ] && ln -s $reads ${prefix}.fastq.gz

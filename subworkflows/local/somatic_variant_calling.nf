@@ -109,12 +109,11 @@ workflow PAIR_VARIANT_CALLING {
     )
 
     mutect2_vcf = MUTECT2.out.vcf
-    mutect2_vcf_stats = MUTECT2.out.vcf_stats
+    mutect2_vcf = mutect2_vcf.join(MUTECT2.out.vcf_stats)
     tool_versions = tool_versions.mix(MUTECT2.out.version)
 
     emit:
         mutect2_vcf            = mutect2_vcf
-        mutect2_vcf_stats      = mutect2_vcf_stats
         strelka_vcf            = strelka_vcf
         varscan_vcf            = varscan_vcf
         somaticsniper_vcf      = somaticsniper_vcf

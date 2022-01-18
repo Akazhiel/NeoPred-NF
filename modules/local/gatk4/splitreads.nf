@@ -4,7 +4,7 @@ include { initOptions; saveFiles; getSoftwareName } from '../functions'
 params.options = [:]
 options        = initOptions(params.options)
 
-process GATK4_BASERECALIBRATOR {
+process SPLITNCIGAR {
     tag "$meta.id"
     label 'process_low'
     // publishDir "${params.outdir}",
@@ -16,44 +16,21 @@ process GATK4_BASERECALIBRATOR {
     path fasta
     path fai
     path dict
-    path knownSites
-    path knownSites_tbi
-    path target_bed
 
     output:
-    tuple val(meta), path("*.table"), emit: table
-    path "*.version.txt" ,            emit: version
+    tuple val(meta), path("*.bam"), path("*.bai"), emit: bam
+    path "*.version.txt"                         , emit: versions
 
     script:
     def software = getSoftwareName(task.process)
     def prefix   = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
-    def sitesCommand = knownSites.collect{"--known-sites ${it}"}.join(' ')
-    def intervals = target_bed ? "--intervals ${target_bed}" : ""
 
-    if (meta.type == "dna") {
     """
-    gatk BaseRecalibrator  \
+    gatk SplitNCigarReads  \
+        --create-output-bam-index \
         -R $fasta \
         -I $bam \
-        $sitesCommand \
-        --tmp-dir . \
-        $options.args \
-        $intervals \
-        -O ${prefix}.table
+        -O ${prefix}.bam
     gatk --version | grep Picard | sed "s/Picard Version: //g" > ${software}.version.txt
     """
-    } else {
-    """
-    gatk BaseRecalibrator  \
-        -R $fasta \
-        -I $bam \
-        $sitesCommand \
-        --tmp-dir . \
-        --use-original-qualities \
-        $options.args \
-        -O ${prefix}.table
-    gatk --version | grep Picard | sed "s/Picard Version: //g" > ${software}.version.txt
-    """
-    }
-    
 }

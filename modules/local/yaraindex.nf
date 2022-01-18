@@ -7,12 +7,14 @@ options        = initOptions(params.options)
 process YARA_INDEX {
     tag "$fasta"
     label 'process_medium'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'index', meta:[:], publish_by_meta:[]) }
+    // publishDir "${params.outdir}",
+    //     mode: params.publish_dir_mode,
+    //     saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'index', meta:[:], publish_by_meta:[]) }
 
     input:
     path fasta
+    tuple val(meta), path(reads)
+
 
     output:
     path "yara"             , emit: index

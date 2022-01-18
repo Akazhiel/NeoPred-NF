@@ -35,7 +35,6 @@ workflow ALIGN_STAR {
     bam_indexed = bam.join(SAMTOOLS_INDEX.out.bai)
 
     emit:
-    bam            = bam_indexed            // channel: [ val(meta), bam            ]
-
-    versions       = ch_versions                    // channel: [ versions.yml ]
+    bam            = bam_indexed            // channel: [ val(meta), bam]
+    versions       = ch_versions            // channel: [ versions.yml ]
 }

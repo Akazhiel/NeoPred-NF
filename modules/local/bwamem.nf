@@ -7,9 +7,9 @@ options        = initOptions(params.options)
 process BWA_MEM {
     tag "$meta.id"
     label 'process_high'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
+    // publishDir "${params.outdir}",
+    //     mode: params.publish_dir_mode,
+    //     saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
 
     input:
     tuple val(meta), path(reads)
@@ -24,7 +24,9 @@ process BWA_MEM {
     def software   = getSoftwareName(task.process)
     def prefix     = options.suffix ? "${meta.id}${options.suffix}.${part}" : "${meta.id}."
     def read_group = meta.read_group ? "-R ${meta.read_group}" : ""
-    println "Processing sample ${meta.id}"
+    
+    println "Mapping ${meta.patient}"
+
     """
     INDEX=`find -L ./ -name "*.amb" | sed 's/.amb//'`
     bwa mem \\

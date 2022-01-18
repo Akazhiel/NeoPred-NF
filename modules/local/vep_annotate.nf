@@ -7,9 +7,9 @@ options        = initOptions(params.options)
 process VEP {
     tag "$meta.id"
     label 'process_high'
-    publishDir "${params.outdir}",
-        mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['patient']) }
+    // publishDir "${params.outdir}",
+    //     mode: params.publish_dir_mode,
+    //     saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['patient']) }
 
     container "hla-vep:latest"
 
@@ -27,6 +27,7 @@ process VEP {
     script:
     def software = getSoftwareName(task.process)
     def prefix = options.suffix ? "${meta.id}${options.suffix}" : "${meta.id}"
+    def dir_cache = cache ? "\${PWD}/${cache}" : "/.vep"
 
     """
     vep \\
@@ -37,10 +38,10 @@ process VEP {
         --cache \\
         --fasta ${fasta} \\
         --cache_version $cache_version \\
-        --dir_cache $cache \\
+        --dir_cache $dir_cache \\
         --fork $task.cpus \\
         $options.args2
 
-    echo \$(vep 2>&1) | sed -e 's/^.*ensembl-vep : //g; s/ \\*.*\$//' > ${software}.version.txt
+    echo \$(vep --help 2>&1) | sed 's/^.*Versions:.*ensembl-vep : //;s/ .*\$//' > ${software}.version.txt
     """
 }

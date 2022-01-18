@@ -4,15 +4,16 @@ include { saveFiles } from './functions'
 params.options = [:]
 
 process GET_SOFTWARE_VERSIONS {
-    publishDir "${params.outdir}",
+    publishDir "${params.outdir}/${meta.patient}",
         mode: params.publish_dir_mode,
-        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'pipeline_info', meta:[:], publish_by_meta:[]) }
+        saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:'pipeline_info', meta:meta, publish_by_meta: false) }
 
     container "quay.io/biocontainers/python:3.8.3"
 
     cache false
 
     input:
+    tuple val(meta), path(reads)
     path versions
 
     output:

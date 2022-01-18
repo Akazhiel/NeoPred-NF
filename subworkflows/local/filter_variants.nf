@@ -23,7 +23,6 @@ workflow FILTER_VARIANTS {
         somaticsniper_vcf
         strelka_vcf
         mutect2_vcf
-        mutect2_vcf_stats
 
     main:
 
@@ -32,9 +31,24 @@ workflow FILTER_VARIANTS {
     bam.map{ meta, bam, bai ->
         patient = meta.patient
         sample  = meta.id
+        gender  = meta.gender
         status  = meta.status
-        [patient, sample]
-    }.groupTuple(sort: true).set{ bam }
+        [patient, sample, gender, status, bam, bai]
+    }.branch{
+        normal: it[3] == 0
+        tumor:  it[3] == 1
+    }.set{ bam_to_cross }
+
+    bam_pair = bam_to_cross.normal.cross(bam_to_cross.tumor).map { normal, tumor ->
+        def meta = [:]
+        meta.patient = normal[0]
+        meta.normal  = normal[1]
+        meta.tumor   = tumor[1]
+        meta.gender  = normal[2]
+        meta.id      = "${meta.tumor}_vs_${meta.normal}".toString()
+
+        [meta, normal[4], normal[5], tumor[4], tumor[5]]
+    }
 
     strelka_vcf.branch{ meta, vcfs ->
         indel:  vcfs =~ /\\*_indels.vcf.gz/
@@ -61,11 +75,9 @@ workflow FILTER_VARIANTS {
 
     MUTECT2_FILTER (
         mutect2_vcf,
-        mutect2_vcf_stats,
         fasta,
         fasta_fai,
-        dict,
-        bam
+        dict
     )
 
     mutect2_vcf = MUTECT2_FILTER.out.vcf
