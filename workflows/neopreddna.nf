@@ -145,7 +145,7 @@ include { VEP } from '../modules/local/vep_annotate'                            
 workflow NEOPRED_DNA {
 
     ch_software_versions = Channel.empty()
-
+    
     known_sites     = dbsnp.concat(known_indels).collect()
     known_sites_tbi = dbsnp_tbi.concat(known_indels_index).collect()
 

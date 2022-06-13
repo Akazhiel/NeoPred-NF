@@ -6,7 +6,7 @@ options        = initOptions(params.options)
 
 process SPLITNCIGAR {
     tag "$meta.id"
-    label 'process_low'
+    label 'process_high'
     // publishDir "${params.outdir}",
     //     mode: params.publish_dir_mode,
     //     saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:meta, publish_by_meta:['id']) }
@@ -31,6 +31,7 @@ process SPLITNCIGAR {
         -R $fasta \
         -I $bam \
         -O ${prefix}.bam
+        
     gatk --version | grep Picard | sed "s/Picard Version: //g" > ${software}.version.txt
     """
 }

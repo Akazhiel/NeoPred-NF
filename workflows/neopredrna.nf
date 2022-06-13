@@ -252,7 +252,7 @@ workflow NEOPRED_RNA {
         gtf
     )
 
-    rna_counts = FEATURECOUNTS.out.counts.ifEmpty([])
+    rna_counts = FEATURECOUNTS.out.counts
     rna_counts.map { meta, counts ->
         [meta.patient, counts]
     }.groupTuple(by: 0).set { rna_counts }
@@ -279,7 +279,7 @@ workflow NEOPRED_RNA {
         [meta, *paths.sort( { it.getName().toString() })]
         }.set { vcf_to_merge }
 
-    ch_software_versions = ch_software_versions.mix(HAPLOTYPECALLER_FILTER.out.version.ifEmpty(null))
+    ch_software_versions = ch_software_versions.mix(HAPLOTYPECALLER_FILTER.out.version)
 
     //
     // COMBINEVARIANTS
