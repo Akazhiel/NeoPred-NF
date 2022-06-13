@@ -30,12 +30,16 @@ process VEP {
     def dir_cache = cache ? "\${PWD}/${cache}" : "/.vep"
 
     """
+
+    bcftools norm -m- $vcf | bcftools view -e 'ALT=="*"' -o ${meta.id}_split.vcf
+
     vep \\
-        -i $vcf \\
+        -i ${meta.id}_split.vcf \\
         -o ${prefix}.ann.vcf \\
         $options.args \\
         --assembly ${params.genome} \\
         --cache \\
+        --verbose \\
         --fasta ${fasta} \\
         --cache_version $cache_version \\
         --dir_cache $dir_cache \\

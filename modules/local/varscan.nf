@@ -38,7 +38,7 @@ process VARSCAN {
         Tumor.pileup   \\
         ${prefix}      \\
         $options.args2
-
+        
     echo \$(varscan 2>&1) | sed -e 's/^.*VarScan v//g; s/ \\*.*\$//' > ${software}.version.txt
     """
 }
