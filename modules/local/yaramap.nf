@@ -38,6 +38,13 @@ process YARA_MAPPER {
         output_2.fastq > output.bam
     samtools view -@ ${split_cpus} -hF 4 -f 0x40 -b output.bam > ${prefix}_1.mapped.bam
     samtools view -@ ${split_cpus} -hF 4 -f 0x80 -b output.bam > ${prefix}_2.mapped.bam
+    
+    rm output_2.bam
+    rm output_1.bam
+    rm output_1.fastq
+    rm output_2.fastq
+    rm output.bam
+
     echo \$(yara_mapper --version) | sed "s/^.*yara_mapper version: //; s/ .*\$//" > ${software}.version.txt
     """
 }
