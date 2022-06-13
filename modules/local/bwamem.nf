@@ -20,7 +20,6 @@ process BWA_MEM {
     path  "*.version.txt"         , emit: version
 
     script:
-    def split_cpus = Math.floor(task.cpus/2)
     def software   = getSoftwareName(task.process)
     def prefix     = options.suffix ? "${meta.id}${options.suffix}.${part}" : "${meta.id}."
     def read_group = meta.read_group ? "-R ${meta.read_group}" : ""
@@ -30,7 +29,7 @@ process BWA_MEM {
     """
     INDEX=`find -L ./ -name "*.amb" | sed 's/.amb//'`
     bwa mem \\
-        -t ${split_cpus} \\
+        -t $task.cpus \\
         $options.args \\
         $read_group \\
         \$INDEX \\
