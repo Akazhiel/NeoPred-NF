@@ -12,13 +12,14 @@ def translate_dna(seq):
 
 def create_epitope_varcode(chrm, start, ref, alt, db, mut_dna, mut_aa, transcript, funcensgene, cDNA_dict, AA_dict):
     # Retrieve variant info
-    vinfo = Variant(contig=chrm, start=start, ref=ref, alt=alt, ensembl=db)
+    vinfo = Variant(contig=chrm, start=start, ref=ref, alt=alt, ensembl=db, allow_extended_nucleotides=True)
     effect = [effect for effect in vinfo.effects() if effect.transcript_id == transcript][0]
+    print(effect, funcensgene, mut_dna, mut_aa)
     errors = "Flags:"
     wt_mer = '-'
     mut_mer = '-'
     pos = -1
-    three_to_one = IUPACData.protein_letters_3to1
+    three_to_one = IUPACData.protein_letters_3to1_extended
     if effect is None:
         errors += ' could not infer the effect'
     else:
